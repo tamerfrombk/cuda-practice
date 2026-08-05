@@ -5,16 +5,25 @@ CUDA kernels and exercises worked through from
 (Hwu, Kirk & El Hajj) for GPU performance-engineering skills.
 
 ## Environment
-- GPU: GTX 1080
-- CUDA Toolkit: 11.0 
+- OS: Fedora 44
+- GPU: GeForce GT 1030
+- CUDA Toolkit: 12.9, invoked through the `nvcc12` wrapper
+- Driver: 580.173
+
+NOTE: Fedora 44 ships with CUDA 13 and latest 590+ drivers which are incompatible with my older generation GPU.
+To compensate, CUDA Toolkit 12.9 is installed all programs must be built with `nvcc12` wrapper.
 
 ## Kernels
 
 | Exercise        | File           | Concepts                                             |
 |-----------------|----------------|------------------------------------------------------|
 | Vector addition | `vector-add.cu`| kernel launch, grid/block indexing, memory coalescing| 
+| Vector addition using float4 | `vector-add4.cu`| same as above but with float4 memory addressing| 
 
 ## Build & run
+
 ```
-nvcc vector-add.cu -o vector-add && ./vector-add
+./build.sh vector-add.cu && ./bin/vector-add
 ```
+
+`vector-add` can be replaced with any other file in the repo and the command is similar.

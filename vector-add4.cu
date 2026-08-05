@@ -11,17 +11,29 @@
   } while (0)
 
 // This is a CUDA program designed to add two vectors into an output vector.
-// It maps one thread to one output element of the vector addition.
+// It maps one thread to 4 output elements (sizeof(float4) / sizeof(float))
+// using the float4 CUDA type. This improves memory coalescing
+// as float4 vectorizes memory access allowing the GPU to load or store 4 floats
+// at once compared to one in the simple vector-add example. Moreover, we can
+// launch 25% of the threads that we do in the simple vector-add example so we
+// can save resources.
 
-__global__ void vector_add(float *a, float *b, float *c, int n) {
-  // i here is the global thread index in the grid
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
+__global__ void vector_add4(float *a, float *b, float *c, int n) {
+  // i here is the global thread index in the grid scaled by number of float4
+  // elements
+  int i = (blockIdx.x * blockDim.x + threadIdx.x * 4);
 
   // Bounds check to ensure that thread is operating on active memory
   if (i < n) {
-    // Memory is coalesced here since consecutive threads access consecutive
-    // addresses
-    c[i] = a[i] + b[i];
+    // Operate on 4 floats instead of 1
+    float4 *a4 = (float4 *)(a + i);
+    float4 *b4 = (float4 *)(b + i);
+    float4 *c4 = (float4 *)(c + i);
+
+    c4->x = a4->x + b4->x;
+    c4->y = a4->y + b4->y;
+    c4->z = a4->z + b4->z;
+    c4->w = a4->w + b4->w;
   }
 }
 
@@ -50,8 +62,11 @@ int main() {
   CUDA_CHECK(cudaMemcpy(d_b, h_b, bytes, cudaMemcpyHostToDevice));
 
   int threadsPerBlock = 256;
-  int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock; // std::ciel
-  vector_add<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, n);
+
+  // NOTE: we only need 1/4 of the threads
+  int blocksPerGrid =
+      ((n / 4) + threadsPerBlock - 1) / threadsPerBlock; // std::ciel
+  vector_add4<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, n);
 
   // Launches are async and report nothing through <<<>>>, so check explicitly:
   // cudaGetLastError catches launch-time failures (bad config, no kernel image
