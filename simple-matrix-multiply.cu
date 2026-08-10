@@ -40,7 +40,7 @@ __global__ void simple_matrix_multiply(float *a, float *b, float *p, int n) {
 }
 
 int main() {
-  int dim = 32;
+  int dim = 256;
   int n = dim * dim;
   size_t bytes = n * sizeof(float);
 
@@ -66,19 +66,11 @@ int main() {
 
   int blockSize = 32;
 
-  constexpr auto ceildiv = [](int a, int b) { return (a + b - 1) / b; };
-
   dim3 threadsPerBlock(blockSize, blockSize);
-  // NOTE: in this particular case, since dim == blockSize, we can replace the
-  // below with dim3 blockConfig(1, 1) and remove the bounds checking above. To
-  // keep general though, we can use the below.
-  dim3 blockConfig(ceildiv(n, threadsPerBlock.x),
-                   ceildiv(n, threadsPerBlock.y));
+  dim3 blockConfig((dim + blockSize - 1) / blockSize,
+                    (dim + blockSize - 1) / blockSize); // std::ciel
   simple_matrix_multiply<<<blockConfig, threadsPerBlock>>>(d_a, d_b, d_c, dim);
 
-  // Launches are async and report nothing through <<<>>>, so check explicitly:
-  // cudaGetLastError catches launch-time failures (bad config, no kernel image
-  // for this GPU), cudaDeviceSynchronize catches faults during execution.
   CUDA_CHECK(cudaGetLastError());
   CUDA_CHECK(cudaDeviceSynchronize());
 
@@ -90,10 +82,7 @@ int main() {
   CUDA_CHECK(cudaFree(d_b));
   CUDA_CHECK(cudaFree(d_c));
 
-  for (int i = 0; i < n; ++i) {
-    printf("%f ", h_c[i]);
-  }
-  putchar('\n');
+  printf("%f\n", h_c[n - 1]);
 
   free(h_a);
   free(h_b);

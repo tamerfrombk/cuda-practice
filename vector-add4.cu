@@ -16,12 +16,12 @@
 // as float4 vectorizes memory access allowing the GPU to load or store 4 floats
 // at once compared to one in the simple vector-add example. Moreover, we can
 // launch 25% of the threads that we do in the simple vector-add example so we
-// can save resources.
+// can save resources (mini thread-coarsening).
 
 __global__ void vector_add4(float *a, float *b, float *c, int n) {
   // i here is the global thread index in the grid scaled by number of float4
   // elements
-  int i = (blockIdx.x * blockDim.x + threadIdx.x * 4);
+  int i = (blockIdx.x * blockDim.x + threadIdx.x) * 4;
 
   // Bounds check to ensure that thread is operating on active memory
   if (i < n) {
@@ -68,9 +68,6 @@ int main() {
       ((n / 4) + threadsPerBlock - 1) / threadsPerBlock; // std::ciel
   vector_add4<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, n);
 
-  // Launches are async and report nothing through <<<>>>, so check explicitly:
-  // cudaGetLastError catches launch-time failures (bad config, no kernel image
-  // for this GPU), cudaDeviceSynchronize catches faults during execution.
   CUDA_CHECK(cudaGetLastError());
   CUDA_CHECK(cudaDeviceSynchronize());
 

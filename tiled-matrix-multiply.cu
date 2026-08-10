@@ -20,14 +20,14 @@
 // to:
 // 1. Reduced Memory Traffic: fast memory access versus slow global access
 // 2. Improved Bandwidth: tiling allows for memory coalescing where consective
-// threads read consectutive memory locations.
+// threads read consecutive memory locations.
 // 3. Higher arithmetic intensity: By moving data to fast memory, more time is
 // spend in compute.
 // 4. Scalability: tiling allows kernels to handle matrices larger than the
 // available shared memory.
 
 // Compile time define TILE_SIZE
-#define TILE_SIZE 16
+#define TILE_SIZE 32
 
 __global__ void tiled_matrix_multiply(float *a, float *b, float *p, int n) {
   __shared__ float s_a[TILE_SIZE][TILE_SIZE];
@@ -35,27 +35,17 @@ __global__ void tiled_matrix_multiply(float *a, float *b, float *p, int n) {
 
   // Calculate the global row and column thread indices
   // Remember, blockDim.(y,x) == TILE_SIZE
-  int row = blockIdx.y * TILE_SIZE + threadIdx.y;
-  int col = blockIdx.x * TILE_SIZE + threadIdx.x;
+  int row = blockIdx.y * blockDim.y + threadIdx.y;
+  int col = blockIdx.x * blockDim.x + threadIdx.x;
 
   // For each tile, load the reused portions of the matrix multiplication into
   // shared memory.
   float s = 0;
   for (int t = 0; t < n; t += TILE_SIZE) {
-    // Bounds check the row is within range and that the columns do not overflow
-    if (row < n and t + col < n) {
-      s_a[threadIdx.y][threadIdx.x] = a[t + (row * n) + threadIdx.x];
-    } else {
-      // If out of bounds, use a value that provides an identity (0)
-      s_a[threadIdx.y][threadIdx.x] = 0.0;
-    }
-
-    // Bounds check the column is within range and that the rows do not overflow
-    if (col < n and t + row < n) {
-      s_b[threadIdx.y][threadIdx.x] = b[t + (threadIdx.y * n) + col];
-    } else {
-      s_b[threadIdx.y][threadIdx.x] = 0;
-    }
+    int aCol = t + threadIdx.x;
+    int bRow = t + threadIdx.y;
+    s_a[threadIdx.y][threadIdx.x] = (row < n && aCol < n) ? a[row * n + aCol] : 0.0f;
+    s_b[threadIdx.y][threadIdx.x] = (bRow < n && col < n) ? b[bRow * n + col] : 0.0f;
 
     // Need a sync threads here to ensure all threads have written to shared
     // memory before reading from it below.
@@ -63,7 +53,7 @@ __global__ void tiled_matrix_multiply(float *a, float *b, float *p, int n) {
 
     // This is the reduction loop that performs the dot product to produce one
     // output value at the specified cell.
-    for (int k = 0; k < n; ++k) {
+    for (int k = 0; k < TILE_SIZE; ++k) {
       s += s_a[threadIdx.y][k] * s_b[k][threadIdx.x];
     }
 
@@ -72,14 +62,13 @@ __global__ void tiled_matrix_multiply(float *a, float *b, float *p, int n) {
     __syncthreads();
   }
 
-  // Update the output matrix after ensuring global row and column are in range.
-  if (row < n and col < n) {
+  if (row < n && col < n) {
     p[row * n + col] = s;
   }
 }
 
 int main() {
-  int dim = 512;
+  int dim = 256;
   int n = dim * dim;
   size_t bytes = n * sizeof(float);
 
@@ -103,18 +92,13 @@ int main() {
   CUDA_CHECK(cudaMemcpy(d_a, h_a, bytes, cudaMemcpyHostToDevice));
   CUDA_CHECK(cudaMemcpy(d_b, h_b, bytes, cudaMemcpyHostToDevice));
 
-  int blockSize = TILE_SIZE;
-
   constexpr auto ceildiv = [](int a, int b) { return (a + b - 1) / b; };
 
-  dim3 threadsPerBlock(blockSize, blockSize);
-  dim3 blockConfig(ceildiv(n, threadsPerBlock.x),
-                   ceildiv(n, threadsPerBlock.y));
+  dim3 threadsPerBlock(TILE_SIZE, TILE_SIZE);
+  dim3 blockConfig(ceildiv(dim, threadsPerBlock.x),
+                   ceildiv(dim, threadsPerBlock.y));
   tiled_matrix_multiply<<<blockConfig, threadsPerBlock>>>(d_a, d_b, d_c, dim);
 
-  // Launches are async and report nothing through <<<>>>, so check explicitly:
-  // cudaGetLastError catches launch-time failures (bad config, no kernel image
-  // for this GPU), cudaDeviceSynchronize catches faults during execution.
   CUDA_CHECK(cudaGetLastError());
   CUDA_CHECK(cudaDeviceSynchronize());
 
@@ -126,10 +110,7 @@ int main() {
   CUDA_CHECK(cudaFree(d_b));
   CUDA_CHECK(cudaFree(d_c));
 
-  for (int i = 0; i < n; ++i) {
-    printf("%f ", h_c[i]);
-  }
-  putchar('\n');
+  printf("%f\n", h_c[n - 1]);
 
   free(h_a);
   free(h_b);
