@@ -1,5 +1,4 @@
 #include "cuda-utilities.hpp"
-#include <stdio.h>
 
 // This is a CUDA program designed to add two vectors into an output vector.
 // It maps one thread to 4 output elements (sizeof(float4) / sizeof(float))
@@ -31,24 +30,10 @@ __global__ void vector_add4(float *a, float *b, float *c, int n) {
 int main() {
   int n = 1024;
 
-  cuda_context ctx;
-  auto hm = ctx.allocate_host_memory(n);
-
-  for (int i = 0; i < n; i++) {
-    hm.a[i] = i * 1.0f;
-    hm.b[i] = i * 2.0f;
-  }
-
-  auto dm = ctx.upload_inputs_to_device(hm);
-
-  int threadsPerBlock = 256;
+  dim3 threadsPerBlock(256);
 
   // NOTE: we only need 1/4 of the threads
-  int blocksPerGrid = ceildiv(n / 4, threadsPerBlock);
-  RUN_KERNEL(vector_add4, dm.a, dm.b, dm.c, n, blocksPerGrid, threadsPerBlock);
+  dim3 blocksPerGrid(ceildiv(n / 4, threadsPerBlock.x));
 
-  ctx.download_result_to_host(dm, hm);
-
-  printf("c[0] = %f\n", hm.c[0]);
-  printf("c[1023] = %f\n", hm.c[1023]);
+  RUN_KERNEL_MAIN(n, vector_add4, n, blocksPerGrid, threadsPerBlock);
 }

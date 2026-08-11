@@ -1,5 +1,4 @@
 #include "cuda-utilities.hpp"
-#include <stdio.h>
 
 // This is a CUDA program designed to multiply two input matrixes using tiling.
 // Here we use block_size == TILE_SIZE below.
@@ -64,23 +63,9 @@ int main() {
   int dim = 256;
   int n = dim * dim;
 
-  cuda_context ctx;
-  auto hm = ctx.allocate_host_memory(n);
-
-  for (int i = 0; i < n; i++) {
-    hm.a[i] = i * 1.0f;
-    hm.b[i] = i * 2.0f;
-  }
-
-  auto dm = ctx.upload_inputs_to_device(hm);
-
   dim3 threadsPerBlock(TILE_SIZE, TILE_SIZE);
   dim3 blockConfig(ceildiv(dim, threadsPerBlock.x),
                    ceildiv(dim, threadsPerBlock.y));
-  RUN_KERNEL(tiled_matrix_multiply, dm.a, dm.b, dm.c, dim, blockConfig,
-             threadsPerBlock);
 
-  ctx.download_result_to_host(dm, hm);
-
-  printf("%f\n", hm.c[n - 1]);
+  RUN_KERNEL_MAIN(n, tiled_matrix_multiply, dim, blockConfig, threadsPerBlock);
 }
