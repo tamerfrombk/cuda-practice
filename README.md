@@ -25,7 +25,8 @@ To compensate, CUDA Toolkit 12.9 is installed all programs must be built with `n
 ## Build & run
 
 ```
-./build.sh vector-add.cu && ./bin/vector-add
+cmake -B build
+cmake --build build -t run-vector-add
 ```
 
-`vector-add` can be replaced with any other file in the repo and the command is similar.
+`vector-add` can be replaced with any other file in the repo (as `run-<name>`) and the command is similar.
