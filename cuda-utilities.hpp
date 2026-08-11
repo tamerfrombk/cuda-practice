@@ -1,6 +1,11 @@
 #pragma once
 
+#include <cstdio>
 #include <cstdlib>
+#include <memory>
+#include <vector>
+
+#include <cuda_runtime.h>
 
 #define CUDA_CHECK(call)                                                       \
   do {                                                                         \
@@ -23,3 +28,70 @@
   } while (0)
 
 constexpr auto ceildiv = [](int a, int b) { return (a + b - 1) / b; };
+
+struct host_memory {
+    float *a, *b, *c;
+    std::size_t n;
+};
+
+struct device_memory {
+    float *a, *b, *c;
+    std::size_t n;
+};
+
+inline void safe_cuda_free(void *p) {
+    CUDA_CHECK(cudaFree(p));
+}
+
+class cuda_context {
+    using device_ptr_t = std::unique_ptr<float[], decltype(&safe_cuda_free)>;
+    using host_ptr_t = std::unique_ptr<float[]>;
+public:
+    [[nodiscard]] auto allocate_host_memory(size_t n) {
+        host_memory hm;
+
+        const auto bytes = n * sizeof(float);
+
+        hosts.emplace_back(static_cast<float*>(malloc(bytes)));
+        hm.a = hosts.back().get();
+
+        hosts.emplace_back(static_cast<float*>(malloc(bytes)));
+        hm.b = hosts.back().get();
+
+        hosts.emplace_back(static_cast<float*>(malloc(bytes)));
+        hm.c = hosts.back().get();
+
+        hm.n = bytes;
+
+        return hm;
+    }
+
+    [[nodiscard]] auto upload_inputs_to_device(host_memory hm) {
+        device_memory dm;
+        dm.n = hm.n;
+
+        CUDA_CHECK(cudaMalloc(&dm.a, dm.n));
+        devices.emplace_back(device_ptr_t(dm.a, safe_cuda_free));
+        dm.a = devices.back().get();
+
+        CUDA_CHECK(cudaMalloc(&dm.b, dm.n));
+        devices.emplace_back(device_ptr_t(dm.b, safe_cuda_free));
+        dm.b = devices.back().get();
+
+        CUDA_CHECK(cudaMalloc(&dm.c, dm.n));
+        devices.emplace_back(device_ptr_t(dm.c, safe_cuda_free));
+        dm.c = devices.back().get();
+
+        CUDA_CHECK(cudaMemcpy(dm.a, hm.a, hm.n, cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(dm.b, hm.b, hm.n, cudaMemcpyHostToDevice));
+
+        return dm;
+    }
+
+    [[nodiscard]] auto download_result_to_host(device_memory dm, host_memory hm) {
+        CUDA_CHECK(cudaMemcpy(hm.c, dm.c, dm.n, cudaMemcpyDeviceToHost));
+    }
+private:
+    std::vector<device_ptr_t> devices;
+    std::vector<host_ptr_t> hosts;
+};

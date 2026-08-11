@@ -63,47 +63,24 @@ __global__ void tiled_matrix_multiply(float *a, float *b, float *p, int n) {
 int main() {
   int dim = 256;
   int n = dim * dim;
-  size_t bytes = n * sizeof(float);
 
-  // Use h_prefix to denote host memory
-  float *h_a = (float *)malloc(bytes);
-  float *h_b = (float *)malloc(bytes);
-  float *h_c = (float *)malloc(bytes);
+  cuda_context ctx;
+  auto hm = ctx.allocate_host_memory(n);
 
   for (int i = 0; i < n; i++) {
-    h_a[i] = i * 1.0f;
-    h_b[i] = i * 2.0f;
+    hm.a[i] = i * 1.0f;
+    hm.b[i] = i * 2.0f;
   }
 
-  // d_ prefix for device
-  float *d_a, *d_b, *d_c;
-  CUDA_CHECK(cudaMalloc(&d_a, bytes));
-  CUDA_CHECK(cudaMalloc(&d_b, bytes));
-  CUDA_CHECK(cudaMalloc(&d_c, bytes));
-
-  // Copy from host to device since CUDA operates on GPU memory
-  CUDA_CHECK(cudaMemcpy(d_a, h_a, bytes, cudaMemcpyHostToDevice));
-  CUDA_CHECK(cudaMemcpy(d_b, h_b, bytes, cudaMemcpyHostToDevice));
+  auto dm = ctx.upload_inputs_to_device(hm);
 
   dim3 threadsPerBlock(TILE_SIZE, TILE_SIZE);
   dim3 blockConfig(ceildiv(dim, threadsPerBlock.x),
                    ceildiv(dim, threadsPerBlock.y));
-  RUN_KERNEL(tiled_matrix_multiply, d_a, d_b, d_c, dim, blockConfig,
+  RUN_KERNEL(tiled_matrix_multiply, dm.a, dm.b, dm.c, dim, blockConfig,
              threadsPerBlock);
 
-  // Now that the kernel has run, copy back to host
-  CUDA_CHECK(cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost));
+  ctx.download_result_to_host(dm, hm);
 
-  // Device memory must be freed separately
-  CUDA_CHECK(cudaFree(d_a));
-  CUDA_CHECK(cudaFree(d_b));
-  CUDA_CHECK(cudaFree(d_c));
-
-  printf("%f\n", h_c[n - 1]);
-
-  free(h_a);
-  free(h_b);
-  free(h_c);
-
-  return 0;
+  printf("%f\n", hm.c[n - 1]);
 }

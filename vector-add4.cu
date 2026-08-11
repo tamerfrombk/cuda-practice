@@ -30,51 +30,25 @@ __global__ void vector_add4(float *a, float *b, float *c, int n) {
 
 int main() {
   int n = 1024;
-  size_t bytes = n * sizeof(float);
 
-  // Use h_prefix to denote host memory
-  float *h_a = (float *)malloc(bytes);
-  float *h_b = (float *)malloc(bytes);
-  float *h_c = (float *)malloc(bytes);
+  cuda_context ctx;
+  auto hm = ctx.allocate_host_memory(n);
 
   for (int i = 0; i < n; i++) {
-    h_a[i] = i * 1.0f;
-    h_b[i] = i * 2.0f;
+    hm.a[i] = i * 1.0f;
+    hm.b[i] = i * 2.0f;
   }
 
-  // d_ prefix for device
-  float *d_a, *d_b, *d_c;
-  CUDA_CHECK(cudaMalloc(&d_a, bytes));
-  CUDA_CHECK(cudaMalloc(&d_b, bytes));
-  CUDA_CHECK(cudaMalloc(&d_c, bytes));
-
-  // Copy from host to device since CUDA operates on GPU memory
-  CUDA_CHECK(cudaMemcpy(d_a, h_a, bytes, cudaMemcpyHostToDevice));
-  CUDA_CHECK(cudaMemcpy(d_b, h_b, bytes, cudaMemcpyHostToDevice));
+  auto dm = ctx.upload_inputs_to_device(hm);
 
   int threadsPerBlock = 256;
 
   // NOTE: we only need 1/4 of the threads
   int blocksPerGrid = ceildiv(n / 4, threadsPerBlock);
-  RUN_KERNEL(vector_add4, d_a, d_b, d_c, n, blocksPerGrid, threadsPerBlock);
+  RUN_KERNEL(vector_add4, dm.a, dm.b, dm.c, n, blocksPerGrid, threadsPerBlock);
 
-  CUDA_CHECK(cudaGetLastError());
-  CUDA_CHECK(cudaDeviceSynchronize());
+  ctx.download_result_to_host(dm, hm);
 
-  // Now that the kernel has run, copy back to host
-  CUDA_CHECK(cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost));
-
-  // Device memory must be freed separately
-  CUDA_CHECK(cudaFree(d_a));
-  CUDA_CHECK(cudaFree(d_b));
-  CUDA_CHECK(cudaFree(d_c));
-
-  printf("c[0] = %f\n", h_c[0]);
-  printf("c[1023] = %f\n", h_c[1023]);
-
-  free(h_a);
-  free(h_b);
-  free(h_c);
-
-  return 0;
+  printf("c[0] = %f\n", hm.c[0]);
+  printf("c[1023] = %f\n", hm.c[1023]);
 }
