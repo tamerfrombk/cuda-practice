@@ -15,7 +15,7 @@ foreach(cu_src ${CU_SOURCES})
     add_custom_command(
         OUTPUT ${exe}
         COMMAND ${NVCC12_EXECUTABLE} ${cu_src} -o ${exe}
-        DEPENDS ${cu_src}
+        DEPENDS ${cu_src} "${CMAKE_SOURCE_DIR}/cuda-utilities.hpp"
         COMMENT "Building ${name} with nvcc12"
         VERBATIM
     )

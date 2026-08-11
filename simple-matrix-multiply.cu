@@ -1,14 +1,5 @@
+#include "cuda-utilities.hpp"
 #include <stdio.h>
-
-#define CUDA_CHECK(call)                                                       \
-  do {                                                                         \
-    cudaError_t err = call;                                                    \
-    if (err != cudaSuccess) {                                                  \
-      fprintf(stderr, "CUDA error at %s:%d: %s\n", __FILE__, __LINE__,         \
-              cudaGetErrorString(err));                                        \
-      exit(EXIT_FAILURE);                                                      \
-    }                                                                          \
-  } while (0)
 
 // This is a CUDA program designed to multiply two input matrixes using the
 // simplest approach:
@@ -67,12 +58,9 @@ int main() {
   int blockSize = 32;
 
   dim3 threadsPerBlock(blockSize, blockSize);
-  dim3 blockConfig((dim + blockSize - 1) / blockSize,
-                    (dim + blockSize - 1) / blockSize); // std::ciel
-  simple_matrix_multiply<<<blockConfig, threadsPerBlock>>>(d_a, d_b, d_c, dim);
-
-  CUDA_CHECK(cudaGetLastError());
-  CUDA_CHECK(cudaDeviceSynchronize());
+  dim3 blockConfig(ceildiv(dim, blockSize), ceildiv(dim, blockSize));
+  RUN_KERNEL(simple_matrix_multiply, d_a, d_b, d_c, dim, blockConfig,
+             threadsPerBlock);
 
   // Now that the kernel has run, copy back to host
   CUDA_CHECK(cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost));

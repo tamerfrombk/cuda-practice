@@ -1,14 +1,5 @@
+#include "cuda-utilities.hpp"
 #include <stdio.h>
-
-#define CUDA_CHECK(call)                                                       \
-  do {                                                                         \
-    cudaError_t err = call;                                                    \
-    if (err != cudaSuccess) {                                                  \
-      fprintf(stderr, "CUDA error at %s:%d: %s\n", __FILE__, __LINE__,         \
-              cudaGetErrorString(err));                                        \
-      exit(EXIT_FAILURE);                                                      \
-    }                                                                          \
-  } while (0)
 
 // This is a CUDA program designed to add two vectors into an output vector.
 // It maps one thread to 4 output elements (sizeof(float4) / sizeof(float))
@@ -64,9 +55,8 @@ int main() {
   int threadsPerBlock = 256;
 
   // NOTE: we only need 1/4 of the threads
-  int blocksPerGrid =
-      ((n / 4) + threadsPerBlock - 1) / threadsPerBlock; // std::ciel
-  vector_add4<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, n);
+  int blocksPerGrid = ceildiv(n / 4, threadsPerBlock);
+  RUN_KERNEL(vector_add4, d_a, d_b, d_c, n, blocksPerGrid, threadsPerBlock);
 
   CUDA_CHECK(cudaGetLastError());
   CUDA_CHECK(cudaDeviceSynchronize());

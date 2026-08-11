@@ -1,14 +1,5 @@
+#include "cuda-utilities.hpp"
 #include <stdio.h>
-
-#define CUDA_CHECK(call)                                                       \
-  do {                                                                         \
-    cudaError_t err = call;                                                    \
-    if (err != cudaSuccess) {                                                  \
-      fprintf(stderr, "CUDA error at %s:%d: %s\n", __FILE__, __LINE__,         \
-              cudaGetErrorString(err));                                        \
-      exit(EXIT_FAILURE);                                                      \
-    }                                                                          \
-  } while (0)
 
 // This is a CUDA program designed to multiply two input matrixes using tiling.
 // Here we use block_size == TILE_SIZE below.
@@ -44,8 +35,10 @@ __global__ void tiled_matrix_multiply(float *a, float *b, float *p, int n) {
   for (int t = 0; t < n; t += TILE_SIZE) {
     int aCol = t + threadIdx.x;
     int bRow = t + threadIdx.y;
-    s_a[threadIdx.y][threadIdx.x] = (row < n && aCol < n) ? a[row * n + aCol] : 0.0f;
-    s_b[threadIdx.y][threadIdx.x] = (bRow < n && col < n) ? b[bRow * n + col] : 0.0f;
+    s_a[threadIdx.y][threadIdx.x] =
+        (row < n && aCol < n) ? a[row * n + aCol] : 0.0f;
+    s_b[threadIdx.y][threadIdx.x] =
+        (bRow < n && col < n) ? b[bRow * n + col] : 0.0f;
 
     // Need a sync threads here to ensure all threads have written to shared
     // memory before reading from it below.
@@ -92,15 +85,11 @@ int main() {
   CUDA_CHECK(cudaMemcpy(d_a, h_a, bytes, cudaMemcpyHostToDevice));
   CUDA_CHECK(cudaMemcpy(d_b, h_b, bytes, cudaMemcpyHostToDevice));
 
-  constexpr auto ceildiv = [](int a, int b) { return (a + b - 1) / b; };
-
   dim3 threadsPerBlock(TILE_SIZE, TILE_SIZE);
   dim3 blockConfig(ceildiv(dim, threadsPerBlock.x),
                    ceildiv(dim, threadsPerBlock.y));
-  tiled_matrix_multiply<<<blockConfig, threadsPerBlock>>>(d_a, d_b, d_c, dim);
-
-  CUDA_CHECK(cudaGetLastError());
-  CUDA_CHECK(cudaDeviceSynchronize());
+  RUN_KERNEL(tiled_matrix_multiply, d_a, d_b, d_c, dim, blockConfig,
+             threadsPerBlock);
 
   // Now that the kernel has run, copy back to host
   CUDA_CHECK(cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost));

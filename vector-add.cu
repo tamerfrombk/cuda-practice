@@ -1,14 +1,5 @@
+#include "cuda-utilities.hpp"
 #include <stdio.h>
-
-#define CUDA_CHECK(call)                                                       \
-  do {                                                                         \
-    cudaError_t err = call;                                                    \
-    if (err != cudaSuccess) {                                                  \
-      fprintf(stderr, "CUDA error at %s:%d: %s\n", __FILE__, __LINE__,         \
-              cudaGetErrorString(err));                                        \
-      exit(EXIT_FAILURE);                                                      \
-    }                                                                          \
-  } while (0)
 
 // This is a CUDA program designed to add two vectors into an output vector.
 // It maps one thread to one output element of the vector addition.
@@ -50,14 +41,8 @@ int main() {
   CUDA_CHECK(cudaMemcpy(d_b, h_b, bytes, cudaMemcpyHostToDevice));
 
   int threadsPerBlock = 256;
-  int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock; // std::ciel
-  vector_add<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, n);
-
-  // Launches are async and report nothing through <<<>>>, so check explicitly:
-  // cudaGetLastError catches launch-time failures (bad config, no kernel image
-  // for this GPU), cudaDeviceSynchronize catches faults during execution.
-  CUDA_CHECK(cudaGetLastError());
-  CUDA_CHECK(cudaDeviceSynchronize());
+  int blocksPerGrid = ceildiv(n, threadsPerBlock);
+  RUN_KERNEL(vector_add, d_a, d_b, d_c, n, blocksPerGrid, threadsPerBlock);
 
   // Now that the kernel has run, copy back to host
   CUDA_CHECK(cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost));
