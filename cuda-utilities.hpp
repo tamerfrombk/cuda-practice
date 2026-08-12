@@ -49,44 +49,38 @@ class cuda_context {
 
 public:
   [[nodiscard]] auto allocate_host_memory(size_t n) {
-    host_memory hm;
+    const auto byte_count = n * sizeof(float);
 
-    const auto bytes = n * sizeof(float);
+    float *ps[3];
+    for (int i = 0; i < 3; ++i) {
+      hosts.emplace_back(static_cast<float *>(malloc(byte_count)));
+      ps[i] = hosts.back().get();
+    }
 
-    hosts.emplace_back(static_cast<float *>(malloc(bytes)));
-    hm.a = hosts.back().get();
-
-    hosts.emplace_back(static_cast<float *>(malloc(bytes)));
-    hm.b = hosts.back().get();
-
-    hosts.emplace_back(static_cast<float *>(malloc(bytes)));
-    hm.c = hosts.back().get();
-
-    hm.n = bytes;
-
-    return hm;
+    return host_memory{
+        .a = ps[0],
+        .b = ps[1],
+        .c = ps[2],
+        .n = byte_count,
+    };
   }
 
   [[nodiscard]] auto upload_inputs_to_device(host_memory hm) {
-    device_memory dm;
-    dm.n = hm.n;
+    float *ps[3];
+    for (int i = 0; i < 3; ++i) {
+      CUDA_CHECK(cudaMalloc(&ps[i], hm.n));
+      devices.emplace_back(ps[i], safe_cuda_free);
+    }
 
-    CUDA_CHECK(cudaMalloc(&dm.a, dm.n));
-    devices.emplace_back(device_ptr_t(dm.a, safe_cuda_free));
-    dm.a = devices.back().get();
+    CUDA_CHECK(cudaMemcpy(ps[0], hm.a, hm.n, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(ps[1], hm.b, hm.n, cudaMemcpyHostToDevice));
 
-    CUDA_CHECK(cudaMalloc(&dm.b, dm.n));
-    devices.emplace_back(device_ptr_t(dm.b, safe_cuda_free));
-    dm.b = devices.back().get();
-
-    CUDA_CHECK(cudaMalloc(&dm.c, dm.n));
-    devices.emplace_back(device_ptr_t(dm.c, safe_cuda_free));
-    dm.c = devices.back().get();
-
-    CUDA_CHECK(cudaMemcpy(dm.a, hm.a, hm.n, cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(dm.b, hm.b, hm.n, cudaMemcpyHostToDevice));
-
-    return dm;
+    return device_memory{
+        .a = ps[0],
+        .b = ps[1],
+        .c = ps[2],
+        .n = hm.n,
+    };
   }
 
   [[nodiscard]] auto download_result_to_host(device_memory dm, host_memory hm) {
