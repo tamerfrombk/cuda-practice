@@ -31,6 +31,24 @@
 
 constexpr auto ceildiv = [](int a, int b) { return (a + b - 1) / b; };
 
+inline auto print_cuda_properties = [] {
+  int device_count;
+  CUDA_CHECK(cudaGetDeviceCount(&device_count));
+
+  for (int i = 0; i < device_count; ++i) {
+    cudaDeviceProp prop;
+    CUDA_CHECK(cudaGetDeviceProperties(&prop, i));
+
+    printf("dev:%d:%s | maxThreadsPerBlock=%d multiProcessorCount=%d, "
+           "clockRate=%d, maxThreadsDim(%d, %d, %d), maxGridSize(%d, %d, %d), "
+           "regsPerBlock=%d, warpSize=%d\n",
+           i, prop.name, prop.maxThreadsPerBlock, prop.multiProcessorCount,
+           prop.clockRate, prop.maxThreadsDim[0], prop.maxThreadsDim[1],
+           prop.maxThreadsDim[2], prop.maxGridSize[0], prop.maxGridSize[1],
+           prop.maxGridSize[2], prop.regsPerBlock, prop.warpSize);
+  }
+};
+
 struct host_memory {
   float *a, *b, *c;
   std::size_t n;
@@ -94,8 +112,9 @@ private:
 
 #define RUN_KERNEL_MAIN(BYTE_COUNT, kern, N, gDim, bDim)                       \
   do {                                                                         \
-    cuda_context ctx;                                                          \
+    print_cuda_properties();                                                   \
                                                                                \
+    cuda_context ctx;                                                          \
     auto hm = ctx.allocate_host_memory(BYTE_COUNT);                            \
     for (int i = 0; i < BYTE_COUNT; i++) {                                     \
       hm.a[i] = i * 1.0f;                                                      \
