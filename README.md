@@ -21,6 +21,7 @@ To compensate, CUDA Toolkit 12.9 is installed all programs must be built with `n
 | Vector addition using float4 | `vector-add4.cu`| same as above but with float4 memory addressing| 
 | Square MatMul | `simple-matrix-multiply.cu`| 2D grid/block indexing and memory coalescing| 
 | Tiled MatMul | `tiled-matrix-multiply.cu`| Shared Memory and Tiling| 
+| Histogram | `histogram.cu`| Atomics, Privatization, Thread Coarsening| 
 
 ## Build & run
 
