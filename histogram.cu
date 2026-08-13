@@ -236,6 +236,7 @@ inline void run_privatized_shared_coarsened_grayscale(int n,
 }
 
 int main() {
+  print_cuda_properties();
   {
     int n = 1024;
     dim3 threadsPerBlock(256);

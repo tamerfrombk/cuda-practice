@@ -122,6 +122,7 @@ inline void run_tiled_matrix_multiply(int n, int dim, dim3 threadsPerBlock,
 }
 
 int main() {
+  print_cuda_properties();
   {
     int dim = 256;
     int n = dim * dim;

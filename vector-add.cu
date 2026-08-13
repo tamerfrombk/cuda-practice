@@ -70,6 +70,7 @@ inline void run_vector_add4(int n, dim3 threadsPerBlock, dim3 blocksPerGrid) {
 }
 
 int main() {
+  print_cuda_properties();
   {
     int n = 1024;
     dim3 threadsPerBlock(256);
