@@ -109,21 +109,3 @@ private:
   std::vector<device_ptr_t> devices;
   std::vector<host_ptr_t> hosts;
 };
-
-#define RUN_KERNEL_MAIN(BYTE_COUNT, kern, N, gDim, bDim)                       \
-  do {                                                                         \
-    print_cuda_properties();                                                   \
-                                                                               \
-    cuda_context ctx;                                                          \
-    auto hm = ctx.allocate_host_memory(BYTE_COUNT);                            \
-    for (int i = 0; i < BYTE_COUNT; i++) {                                     \
-      hm.a[i] = i * 1.0f;                                                      \
-      hm.b[i] = i * 2.0f;                                                      \
-    }                                                                          \
-                                                                               \
-    auto dm = ctx.upload_inputs_to_device(hm);                                 \
-    RUN_KERNEL(kern, dm.a, dm.b, dm.c, N, gDim, bDim);                         \
-    ctx.download_result_to_host(dm, hm);                                       \
-                                                                               \
-    printf("%f\n", hm.c[BYTE_COUNT - 1]);                                      \
-  } while (0)
