@@ -20,6 +20,7 @@ To compensate, CUDA Toolkit 12.9 is installed all programs must be built with `n
 | Vector addition | `vector-add.cu`| kernel launch, grid/block indexing, memory coalescing, float4 memory addressing| 
 | MatMul | `matrix-multiply.cu`| 2D grid/block indexing, memory coalescing, shared memory and tiling| 
 | Histogram | `histogram.cu`| Atomics, Privatization, Thread Coarsening| 
+| Reduction | `reduction.cu`| Sum reduction: control divergence, shared memory, warp shuffle primitives, multi-block reduction with atomics| 
 
 ## Build & run
 
