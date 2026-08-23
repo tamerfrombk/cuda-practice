@@ -71,7 +71,8 @@ public:
 
     float *ps[3];
     for (int i = 0; i < 3; ++i) {
-      hosts.emplace_back(static_cast<float *>(malloc(byte_count)));
+      hosts.emplace_back(
+          static_cast<float *>(calloc(byte_count, sizeof(float))));
       ps[i] = hosts.back().get();
     }
 
