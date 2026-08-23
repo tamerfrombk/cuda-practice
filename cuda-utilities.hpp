@@ -94,6 +94,9 @@ public:
     CUDA_CHECK(cudaMemcpy(ps[0], hm.a, hm.n, cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(ps[1], hm.b, hm.n, cudaMemcpyHostToDevice));
 
+    // Ensure output is zero-d
+    CUDA_CHECK(cudaMemset(ps[2], 0, hm.n));
+
     return device_memory{
         .a = ps[0],
         .b = ps[1],
