@@ -21,7 +21,12 @@ To compensate, CUDA Toolkit 12.9 is installed all programs must be built with `n
 | MatMul | `matrix-multiply.cu`| 2D grid/block indexing, memory coalescing, shared memory and tiling| 
 | Histogram | `histogram.cu`| Atomics, Privatization, Thread Coarsening| 
 | Reduction | `reduction.cu`| Sum reduction: control divergence, shared memory, warp shuffle primitives, multi-block reduction with atomics| 
-| Kogge-Stone Scan | `kogge-stone-scan.cu`| Kogge-Stone Scan: Warp Primitives, multiple kernel calls, double buffering | 
+| Kogge-Stone Scan | `kogge-stone-scan.cu`| Kogge-Stone Scan: Warp Primitives, multiple kernel calls, double buffering |
+
+## Linear Algebra
+| Exercise        |  Concepts                                             |
+|-----------------|-------------------------------------------------------|
+| LU-Decomposition | Ax -> B, Triangular Matrices, Systems of Equations   | 
 
 ## Build & run
 
