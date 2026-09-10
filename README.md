@@ -26,7 +26,8 @@ To compensate, CUDA Toolkit 12.9 is installed all programs must be built with `n
 ## Linear Algebra
 | Exercise        |  Concepts                                             |
 |-----------------|-------------------------------------------------------|
-| LU-Decomposition | Ax -> B, Triangular Matrices, Systems of Equations   | 
+| LU-Decomposition | Ax -> B, Triangular Matrices, Systems of Linear Equations| 
+| Cholesky Decomposition | Transpose, Symmetry, Positive Definite Matrices| 
 
 ## Build & run
 

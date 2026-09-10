@@ -1,3 +1,4 @@
+#include <cmath>
 #include <iostream>
 #include <stdexcept>
 #include <string_view>
@@ -53,8 +54,7 @@ inline void print(const square_matrix &m) {
 }
 
 struct lu_decomposition {
-  square_matrix L;
-  square_matrix U;
+  square_matrix L, U;
 };
 
 inline lu_decomposition decomposition_lu(square_matrix m) {
@@ -83,8 +83,7 @@ inline lu_decomposition decomposition_lu(square_matrix m) {
 }
 
 inline void run_lu_decomposition(const square_matrix &m) {
-  banner("Original Matrix");
-
+  banner("LU Decomposition Original Matrix");
   print(m);
 
   const auto [L, U] = decomposition_lu(m);
@@ -94,6 +93,60 @@ inline void run_lu_decomposition(const square_matrix &m) {
 
   banner("U Matrix");
   print(U);
+}
+
+struct cholesky_decomposition {
+  square_matrix L, LT;
+};
+
+inline square_matrix transpose(square_matrix m) {
+  for (int r = 0; r < m.dim(); ++r) {
+    for (int c = r + 1; c < m.dim(); ++c) {
+      std::swap(m(r, c), m(c, r));
+    }
+  }
+
+  return m;
+}
+
+inline cholesky_decomposition decomposition_cholesky(square_matrix m) {
+  square_matrix L(m.dim());
+
+  for (int j = 0; j < m.dim(); ++j) {
+    double diagonal_sum = 0;
+    for (int k = 0; k < j; ++k) {
+      diagonal_sum += L(j, k) * L(j, k);
+    }
+
+    L(j, j) = std::sqrt(m(j, j) - diagonal_sum);
+
+    for (int i = j + 1; i < m.dim(); ++i) {
+      double Y = 0;
+      for (int k = 0; k < j; ++k) {
+        Y += L(i, k) * L(j, k);
+      }
+
+      L(i, j) = (m(i, j) - Y) / L(j, j);
+    }
+  }
+
+  return {
+      .L = L,
+      .LT = transpose(L),
+  };
+}
+
+inline void run_cholesky_decomposition(const square_matrix &m) {
+  banner("Cholesky Decomposition Original Matrix");
+  print(m);
+
+  const auto [L, LT] = decomposition_cholesky(m);
+
+  banner("L Matrix");
+  print(L);
+
+  banner("LT Matrix");
+  print(LT);
 }
 
 int main() {
@@ -108,5 +161,11 @@ int main() {
       {3, -9, 0, -9},
       {-1, 2, 4, 7},
       {-3, -6, 26, 2},
+  }});
+
+  run_cholesky_decomposition(square_matrix{{
+      {4, 2, -2},
+      {2, 10, 2},
+      {-2, 2, 6},
   }});
 }
